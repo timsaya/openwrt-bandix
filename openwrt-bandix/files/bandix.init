@@ -21,6 +21,8 @@ start_service() {
 	local traffic_flush_interval_seconds
 	local traffic_persist_history
 	local connections_enabled
+	local dns_enabled
+	local dns_max_records
 	
 	config_load 'bandix'
 	config_get iface 'general' 'iface'
@@ -31,8 +33,10 @@ start_service() {
 	config_get traffic_flush_interval_seconds 'traffic' 'traffic_flush_interval_seconds'
 	config_get_bool traffic_persist_history 'traffic' 'traffic_persist_history'
 	config_get_bool connections_enabled 'connections' 'enabled'
+	config_get_bool dns_enabled 'dns' 'enabled'
+	config_get dns_max_records 'dns' 'dns_max_records'
 
-	[ "$connections_enabled" != 1 ] && [ "$traffic_enabled" != 1 ] && return 1
+	[ "$connections_enabled" != 1 ] && [ "$traffic_enabled" != 1 ] && [ "$dns_enabled" != 1 ] && return 1
 	
 	# 构建基础命令行参数
 	local args="--iface $iface --port $port --data-dir $data_dir"
@@ -54,6 +58,14 @@ start_service() {
 	# 添加连接统计监控参数
 	if [ "$connections_enabled" -eq 1 ]; then
 		args="$args --enable-connection"
+	fi
+	
+	# 添加 DNS 监控参数
+	if [ "$dns_enabled" -eq 1 ]; then
+		args="$args --enable-dns"
+	fi
+	if [ -n "$dns_max_records" ]; then
+		args="$args --dns-max-records $dns_max_records"
 	fi
 	
 	procd_open_instance bandix
