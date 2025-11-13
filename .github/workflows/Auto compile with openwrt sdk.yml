@@ -884,6 +884,34 @@ jobs:
           fi
           rm -f $file_name
 
+      - name: Replace feeds.conf.default
+        if: steps.cache-sdk-extracted.outputs.cache-hit != 'true'
+        run: |
+          cd sdk
+          # 判断 SDK 版本
+          if [[ "${{ matrix.url_sdk }}" == *"24.10.2"* ]]; then
+            # 24.10.2 版本的 feeds.conf.default
+            cat > feeds.conf.default << 'EOF'
+src-git-full base https://github.com/openwrt/openwrt.git;openwrt-24.10
+src-git packages https://github.com/openwrt/packages.git^c7d1a8c1ae976bd0ad94a351d82ee8fbf16a81f0
+src-git luci https://github.com/openwrt/luci.git^d6b13f648339273facc07b173546ace459c1cabe
+src-git routing https://github.com/openwrt/routing.git^85d040f28c21c116c905aa15a66255dde80336e7
+src-git telephony https://github.com/openwrt/telephony.git^2a4541d46199ac96fac214d02c908402831c4dc6
+EOF
+          elif [[ "${{ matrix.url_sdk }}" == *"snapshots"* ]]; then
+            # snapshots 版本的 feeds.conf.default
+            cat > feeds.conf.default << 'EOF'
+src-git-full base https://github.com/openwrt/openwrt.git;main
+src-git packages https://github.com/openwrt/packages.git
+src-git luci https://github.com/openwrt/luci.git
+src-git routing https://github.com/openwrt/routing.git
+src-git telephony https://github.com/openwrt/telephony.git
+src-git video https://github.com/openwrt/video.git
+EOF
+          else
+            echo "Unknown SDK version, skipping feeds.conf.default replacement"
+          fi
+
       - name: Initialize SDK environment
         if: steps.cache-sdk-extracted.outputs.cache-hit != 'true'
         run: |
@@ -931,34 +959,86 @@ jobs:
           echo "CONFIG_LUCI_LANG_zh_Hans=y" >> .config
           echo "CONFIG_PACKAGE_bandix=m" >> .config
           
-
-
           make defconfig
-          make package/custom_packages/openwrt-bandix/openwrt-bandix/compile -j$(nproc) V=s
-          mkdir upload
-          mv bin/packages/*/base/bandix* upload/
-          cd upload
-
-          # 遍历所有 bandix 文件
-          for file in bandix*; do
-            if [[ -f "$file" ]]; then
-                # 提取文件名和扩展名
-                filename="${file%.*}"
-                extension="${file##*.}"
-
-                # 只有当 matrix.ver 是 apk 时才重命名
-                if [[ "${{ matrix.ver }}" == "apk" ]]; then
-                    new_name="${filename}-${{ matrix.platform }}.${extension}"
-                    mv "$file" "$new_name"
-                    echo "Renamed: $file -> $new_name"
-                else
-                    echo "Skipped renaming (ver != apk): $file"
-                fi
+          
+          # 1) 编译 openwrt-bandix（先 clean 再 compile）
+          make package/custom_packages/openwrt-bandix/openwrt-bandix/{clean,compile} -j$(nproc) V=s || {
+            echo "编译 openwrt-bandix 失败，仍将尝试检查产物"
+          }
+          
+          # 2) 获取架构信息
+          arch=""
+          if [ -f .config ]; then
+            arch=$(grep "CONFIG_TARGET_ARCH_PACKAGES=" ".config" | cut -d '"' -f2)
+          fi
+          
+          if [ -z "$arch" ]; then
+            echo "未能从 .config 解析到 CONFIG_TARGET_ARCH_PACKAGES，尝试从路径获取"
+            # 尝试从 bin/packages 目录结构获取架构
+            arch=$(find bin/packages -mindepth 1 -maxdepth 1 -type d ! -name ".*" | head -1 | xargs basename)
+          fi
+          
+          if [ -z "$arch" ]; then
+            echo "无法确定架构信息，使用默认路径"
+            arch="*"
+          fi
+          
+          echo "检测到架构: [$arch]"
+          
+          # 3) 检查产物路径（优先 custom，其次 base）
+          BIN_DIR_CUSTOM="bin/packages/$arch/custom"
+          BIN_DIR_BASE="bin/packages/$arch/base"
+          
+          mkdir -p upload
+          
+          # 查找产物（ipk 或 apk），兼容连字符和下划线命名
+          found_pkgs=()
+          if [ -d "$BIN_DIR_CUSTOM" ]; then
+            while IFS= read -r -d '' pkg; do
+              found_pkgs+=("$pkg")
+            done < <(find "$BIN_DIR_CUSTOM" -maxdepth 1 -type f \( -name 'bandix-*.ipk' -o -name 'bandix-*.apk' -o -name 'bandix_*.ipk' -o -name 'bandix_*.apk' \) -print0 2>/dev/null)
+          fi
+          
+          if [ ${#found_pkgs[@]} -eq 0 ] && [ -d "$BIN_DIR_BASE" ]; then
+            while IFS= read -r -d '' pkg; do
+              found_pkgs+=("$pkg")
+            done < <(find "$BIN_DIR_BASE" -maxdepth 1 -type f \( -name 'bandix-*.ipk' -o -name 'bandix-*.apk' -o -name 'bandix_*.ipk' -o -name 'bandix_*.apk' \) -print0 2>/dev/null)
+          fi
+          
+          if [ ${#found_pkgs[@]} -eq 0 ]; then
+            echo "未找到 openwrt-bandix 的 ipk/apk 产物"
+            exit 1
+          fi
+          
+          # 4) 复制并重命名产物
+          for pkg in "${found_pkgs[@]}"; do
+            filename="$(basename "$pkg")"
+            ext="${filename##*.}"
+            name_no_ext="${filename%.*}"
+            
+            # 转义架构名称中的特殊字符用于正则表达式匹配
+            arch_escaped=$(echo "$arch" | sed 's/[.*+?^${}()|[\]\\]/\\&/g')
+            
+            # 若文件名末尾尚未包含 _${arch} 或 -${arch}，则在扩展名前追加 _${arch}
+            if [[ "$name_no_ext" =~ (^|[_-])${arch_escaped}$ ]]; then
+              new_name="$filename"
+            else
+              new_name="${name_no_ext}_${arch}.${ext}"
             fi
+            
+            echo "复制产物: $pkg -> upload/$new_name"
+            cp -f "$pkg" "upload/$new_name" || {
+              echo "复制失败: $pkg"
+              exit 1
+            }
           done
-
-
-
+          
+          if [ ! -d "upload" ] || [ -z "$(ls -A upload 2>/dev/null)" ]; then
+            echo "错误: upload 目录不存在或为空"
+            exit 1
+          fi
+          
+          cd upload
           echo "status=success" >> $GITHUB_OUTPUT
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
