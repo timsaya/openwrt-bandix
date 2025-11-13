@@ -16,6 +16,7 @@ start_service() {
 	local iface
 	local port
 	local data_dir
+	local log_level
 	local traffic_enabled
 	local traffic_retention_seconds
 	local traffic_flush_interval_seconds
@@ -28,6 +29,7 @@ start_service() {
 	config_get iface 'general' 'iface'
 	config_get port 'general' 'port'
 	config_get data_dir 'general' 'data_dir'
+	config_get log_level 'general' 'log_level'
 	config_get_bool traffic_enabled 'traffic' 'enabled'
 	config_get traffic_retention_seconds 'traffic' 'traffic_retention_seconds'
 	config_get traffic_flush_interval_seconds 'traffic' 'traffic_flush_interval_seconds'
@@ -40,6 +42,9 @@ start_service() {
 	
 	# 构建基础命令行参数
 	local args="--iface $iface --port $port --data-dir $data_dir"
+	if [ -n "$log_level" ]; then
+		args="$args --log-level $log_level"
+	fi
 	
 	# 添加流量监控相关参数
 	if [ "$traffic_enabled" -eq 1 ]; then
