@@ -775,34 +775,18 @@ jobs:
           fi
           rm -f $file_name
 
-      - name: Replace feeds.conf.default
-        if: steps.cache-sdk-extracted.outputs.cache-hit != 'true'
-        run: |
-          cd sdk
-          # 判断 SDK 版本
-          if [[ "${{ matrix.url_sdk }}" == *"24.10.2"* ]]; then
-            # 24.10.2 版本的 feeds.conf.default
-            echo 'src-git-full base https://github.com/openwrt/openwrt.git;openwrt-24.10' > feeds.conf.default
-            echo 'src-git packages https://github.com/openwrt/packages.git^c7d1a8c1ae976bd0ad94a351d82ee8fbf16a81f0' >> feeds.conf.default
-            echo 'src-git luci https://github.com/openwrt/luci.git^d6b13f648339273facc07b173546ace459c1cabe' >> feeds.conf.default
-            echo 'src-git routing https://github.com/openwrt/routing.git^85d040f28c21c116c905aa15a66255dde80336e7' >> feeds.conf.default
-            echo 'src-git telephony https://github.com/openwrt/telephony.git^2a4541d46199ac96fac214d02c908402831c4dc6' >> feeds.conf.default
-          elif [[ "${{ matrix.url_sdk }}" == *"snapshots"* ]]; then
-            # snapshots 版本的 feeds.conf.default
-            echo 'src-git-full base https://github.com/openwrt/openwrt.git;main' > feeds.conf.default
-            echo 'src-git packages https://github.com/openwrt/packages.git' >> feeds.conf.default
-            echo 'src-git luci https://github.com/openwrt/luci.git' >> feeds.conf.default
-            echo 'src-git routing https://github.com/openwrt/routing.git' >> feeds.conf.default
-            echo 'src-git telephony https://github.com/openwrt/telephony.git' >> feeds.conf.default
-            echo 'src-git video https://github.com/openwrt/video.git' >> feeds.conf.default
-          else
-            echo "Unknown SDK version, skipping feeds.conf.default replacement"
-          fi
-
       - name: Initialize SDK environment 
         if: steps.cache-sdk-extracted.outputs.cache-hit != 'true'
         run: |
           cd sdk
+
+          # Update feeds to github source
+          sed -i \
+              -e 's|git\.openwrt\.org/feed|github.com/openwrt|g' \
+              -e 's|git\.openwrt\.org/project|github.com/openwrt|g' \
+              -e 's|git\.openwrt\.org/openwrt|github.com/openwrt|g' \
+              "feeds.conf.default"
+
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
