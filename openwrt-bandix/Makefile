@@ -53,7 +53,7 @@ define Package/$(PKG_NAME)/install
 
 	# 将配置文件安装到临时位置，由 postinst 决定是否复制到最终位置
 	$(INSTALL_DIR) $(1)/usr/share/bandix
-	$(INSTALL_CONF) ./files/bandix.config $(1)/usr/share/bandix/bandix.config.default
+	$(INSTALL_CONF) ./files/bandix.config $(1)/etc/config/bandix
 endef
 
 define Package/$(PKG_NAME)/conffiles
@@ -63,10 +63,6 @@ endef
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-    # 检查配置文件是否存在，如果不存在才从默认配置复制
-    if [ ! -f /etc/config/bandix ]; then
-        cp /usr/share/bandix/bandix.config.default /etc/config/bandix
-    fi
     
     # 添加到 sysupgrade.conf 以在系统升级时保留
     if ! grep -q "^/usr/share/bandix$$" /etc/sysupgrade.conf; then
