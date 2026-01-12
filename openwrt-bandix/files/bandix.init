@@ -19,8 +19,11 @@ start_service() {
 	local log_level
 	local traffic_enabled
 	local traffic_retention_seconds
-	local traffic_flush_interval_seconds
+	local traffic_persist_interval_seconds
 	local traffic_persist_history
+	local traffic_export_url
+	local traffic_event_url
+	local traffic_additional_subnets
 	local connections_enabled
 	local dns_enabled
 	local dns_max_records
@@ -44,8 +47,11 @@ start_service() {
 	config_get log_level 'general' 'log_level'
 	config_get_bool traffic_enabled 'traffic' 'enabled'
 	config_get traffic_retention_seconds 'traffic' 'traffic_retention_seconds'
-	config_get traffic_flush_interval_seconds 'traffic' 'traffic_flush_interval_seconds'
+	config_get traffic_persist_interval_seconds 'traffic' 'traffic_persist_interval_seconds'
 	config_get_bool traffic_persist_history 'traffic' 'traffic_persist_history'
+	config_get traffic_export_url 'traffic' 'traffic_export_url'
+	config_get traffic_event_url 'traffic' 'traffic_event_url'
+	config_get traffic_additional_subnets 'traffic' 'traffic_additional_subnets'
 	config_get_bool connections_enabled 'connections' 'enabled'
 	config_get_bool dns_enabled 'dns' 'enabled'
 	config_get dns_max_records 'dns' 'dns_max_records'
@@ -65,11 +71,20 @@ start_service() {
 	if [ -n "$traffic_retention_seconds" ]; then
 		args="$args --traffic-retention-seconds $traffic_retention_seconds"
 	fi
-	if [ -n "$traffic_flush_interval_seconds" ]; then
-		args="$args --traffic-flush-interval-seconds $traffic_flush_interval_seconds"
+	if [ -n "$traffic_persist_interval_seconds" ]; then
+		args="$args --traffic-persist-interval-seconds $traffic_persist_interval_seconds"
 	fi
 	if [ "$traffic_persist_history" -eq 1 ]; then
 		args="$args --traffic-persist-history"
+	fi
+	if [ -n "$traffic_export_url" ]; then
+		args="$args --traffic-export-url $traffic_export_url"
+	fi
+	if [ -n "$traffic_event_url" ]; then
+		args="$args --traffic-event-url $traffic_event_url"
+	fi
+	if [ -n "$traffic_additional_subnets" ]; then
+		args="$args --traffic-additional-subnets $traffic_additional_subnets"
 	fi
 	
 	# 添加连接统计监控参数
