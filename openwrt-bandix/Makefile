@@ -99,6 +99,9 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_CONF) ./files/bandix.config $(1)/etc/config/bandix
 endef
 
+define Package/$(PKG_NAME)/conffiles
+/etc/config/bandix
+endef
 
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
