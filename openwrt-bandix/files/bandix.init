@@ -19,15 +19,17 @@ start_service() {
 	local log_level
 	local tc_priority
 	local traffic_enabled
-	local traffic_retention_seconds
-	local traffic_persist_interval_seconds
-	local traffic_persist_history
+	local traffic_realtime_window
+	local traffic_flush_interval
+	local traffic_enable_storage
 	local traffic_export_url
 	local traffic_event_url
 	local traffic_additional_subnets
 	local connections_enabled
 	local dns_enabled
 	local dns_max_records
+	local dns_enable_storage
+	local dns_flush_interval
 	
 	config_load 'bandix'
 	config_get iface 'general' 'iface'
@@ -36,15 +38,18 @@ start_service() {
 	config_get log_level 'general' 'log_level'
 	config_get tc_priority 'general' 'tc_priority'
 	config_get_bool traffic_enabled 'traffic' 'enabled'
-	config_get traffic_retention_seconds 'traffic' 'traffic_retention_seconds'
-	config_get traffic_persist_interval_seconds 'traffic' 'traffic_persist_interval_seconds'
-	config_get_bool traffic_persist_history 'traffic' 'traffic_persist_history'
+	config_get traffic_realtime_window 'traffic' 'traffic_realtime_window'
+	config_get traffic_flush_interval 'traffic' 'traffic_flush_interval'
+	config_get_bool traffic_enable_storage 'traffic' 'traffic_enable_storage'
 	config_get traffic_export_url 'traffic' 'traffic_export_url'
 	config_get traffic_event_url 'traffic' 'traffic_event_url'
 	config_get traffic_additional_subnets 'traffic' 'traffic_additional_subnets'
 	config_get_bool connections_enabled 'connections' 'enabled'
 	config_get_bool dns_enabled 'dns' 'enabled'
 	config_get dns_max_records 'dns' 'dns_max_records'
+	config_get_bool dns_enable_storage 'dns' 'dns_enable_storage'
+	config_get dns_flush_interval 'dns' 'dns_flush_interval'
+	
 
 	[ "$connections_enabled" != 1 ] && [ "$traffic_enabled" != 1 ] && [ "$dns_enabled" != 1 ] && return 1
 	
@@ -61,14 +66,14 @@ start_service() {
 	if [ "$traffic_enabled" -eq 1 ]; then
 		args="$args --enable-traffic"
 	fi
-	if [ -n "$traffic_retention_seconds" ]; then
-		args="$args --traffic-retention-seconds $traffic_retention_seconds"
+	if [ -n "$traffic_realtime_window" ]; then
+		args="$args --traffic-realtime-window $traffic_realtime_window"
 	fi
-	if [ -n "$traffic_persist_interval_seconds" ]; then
-		args="$args --traffic-persist-interval-seconds $traffic_persist_interval_seconds"
+	if [ -n "$traffic_flush_interval" ]; then
+		args="$args --traffic-flush-interval $traffic_flush_interval"
 	fi
-	if [ "$traffic_persist_history" -eq 1 ]; then
-		args="$args --traffic-persist-history"
+	if [ "$traffic_enable_storage" -eq 1 ]; then
+		args="$args --traffic-enable-storage"
 	fi
 	if [ -n "$traffic_export_url" ]; then
 		args="$args --traffic-export-url $traffic_export_url"
@@ -91,6 +96,12 @@ start_service() {
 	fi
 	if [ -n "$dns_max_records" ]; then
 		args="$args --dns-max-records $dns_max_records"
+	fi
+	if [ "$dns_enable_storage" -eq 1 ]; then
+		args="$args --dns-enable-storage"
+	fi
+	if [ -n "$dns_flush_interval" ]; then
+		args="$args --dns-flush-interval $dns_flush_interval"
 	fi
 	
 	procd_open_instance bandix
