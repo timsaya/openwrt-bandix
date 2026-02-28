@@ -18,7 +18,7 @@ env:
 jobs:
   job_check:
     name: Check Version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       openwrt-bandix_version: ${{ steps.check_version.outputs.latest_version }}
       has_update: ${{ steps.check_version.outputs.has_update }}
@@ -101,7 +101,7 @@ jobs:
     name: Build openwrt-bandix [${{ matrix.platform }}-${{ matrix.ver }}]
     needs: job_check
     if: needs.job_check.outputs.has_update == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

@@ -69,7 +69,7 @@ define Package/$(PKG_NAME)
 	SECTION:=net
 	CATEGORY:=Network
 	TITLE:=Bandix - Network traffic monitoring tool
-	DEPENDS:=+zoneinfo-all +conntrack
+	DEPENDS:=+zoneinfo-core +conntrack
 endef
 
 define Package/$(PKG_NAME)/description
