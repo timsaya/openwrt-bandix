@@ -25,6 +25,7 @@ start_service() {
 	local traffic_export_url
 	local traffic_event_url
 	local traffic_additional_subnets
+	local traffic_exclude_iface_device
 	local connections_enabled
 	local dns_enabled
 	local dns_max_records
@@ -44,6 +45,7 @@ start_service() {
 	config_get traffic_export_url 'traffic' 'traffic_export_url'
 	config_get traffic_event_url 'traffic' 'traffic_event_url'
 	config_get traffic_additional_subnets 'traffic' 'traffic_additional_subnets'
+	config_get_bool traffic_exclude_iface_device 'traffic' 'traffic_exclude_iface_device' '0'
 	config_get_bool connections_enabled 'connections' 'enabled'
 	config_get_bool dns_enabled 'dns' 'enabled'
 	config_get dns_max_records 'dns' 'dns_max_records'
@@ -83,6 +85,9 @@ start_service() {
 	fi
 	if [ -n "$traffic_additional_subnets" ]; then
 		args="$args --traffic-additional-subnets $traffic_additional_subnets"
+	fi
+	if [ "$traffic_exclude_iface_device" -eq 1 ]; then
+		args="$args --traffic-exclude-iface-device"
 	fi
 	
 	# 添加连接统计监控参数
