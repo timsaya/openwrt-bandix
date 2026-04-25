@@ -86,7 +86,7 @@ jobs:
 
       - name: Generate new tag & release
         if: steps.check_version.outputs.has_update == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -499,7 +499,7 @@ jobs:
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: steps.compile.outputs.status == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
