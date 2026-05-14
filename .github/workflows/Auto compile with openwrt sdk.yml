@@ -280,9 +280,8 @@ jobs:
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH: ${{ matrix.platform }}
-          VERSION: ${{ matrix.sdk_ver }}
-          PACKAGES: bandix
+          ARCH: ${{ matrix.sdk_ver == 'snapshots' && matrix.platform || format('{0}-{1}', matrix.platform, matrix.sdk_ver) }}
+          PACKAGES: openwrt-bandix
           V: s
 
       - name: Process and Rename Artifacts
