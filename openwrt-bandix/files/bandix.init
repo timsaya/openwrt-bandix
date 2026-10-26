@@ -14,6 +14,7 @@ reload_service() {
 
 start_service() {
 	local iface
+	local host
 	local port
 	local data_dir
 	local log_level
@@ -33,6 +34,7 @@ start_service() {
 	local traffic_exclude_iface_device
 	local traffic_neighbor_flush_enable
 	local traffic_neighbor_flush_interval
+	local geoip_dir
 	local connections_enabled
 	local dns_enabled
 	local dns_max_records
@@ -41,6 +43,8 @@ start_service() {
 	
 	config_load 'bandix'
 	config_get iface 'general' 'iface'
+	config_get host 'general' 'host' '127.0.0.1'
+	[ -n "$host" ] || host='127.0.0.1'
 	config_get port 'general' 'port'
 	config_get data_dir 'general' 'data_dir'
 	config_get log_level 'general' 'log_level'
@@ -60,6 +64,7 @@ start_service() {
 	config_get_bool traffic_exclude_iface_device 'traffic' 'traffic_exclude_iface_device' '0'
 	config_get_bool traffic_neighbor_flush_enable 'traffic' 'traffic_neighbor_flush_enable' '0'
 	config_get traffic_neighbor_flush_interval 'traffic' 'traffic_neighbor_flush_interval' '600'
+	config_get geoip_dir 'connections' 'geoip_dir' '/usr/share/bandix-geoip'
 	config_get_bool connections_enabled 'connections' 'enabled'
 	config_get_bool dns_enabled 'dns' 'enabled'
 	config_get dns_max_records 'dns' 'dns_max_records'
@@ -150,8 +155,21 @@ start_service() {
 		args="$args --dns-flush-interval $dns_flush_interval"
 	fi
 	
+	# Keep compatibility with published binaries predating these options.
+	local bandix_help
+	bandix_help=$("$PROG" --help 2>/dev/null)
+	if [ "$host" != '127.0.0.1' ] && ! printf '%s\n' "$bandix_help" | grep -q -- '--host'; then
+		logger -t bandix 'The installed Bandix binary does not support --host; upgrade Bandix to change the listening address'
+		return 1
+	fi
 	procd_open_instance bandix
 	procd_set_param command $PROG $args
+	if printf '%s\n' "$bandix_help" | grep -q -- '--host'; then
+		procd_append_param command --host "$host"
+	fi
+	if printf '%s\n' "$bandix_help" | grep -q -- '--geoip-dir'; then
+		procd_append_param command --geoip-dir "$geoip_dir"
+	fi
 	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-60} ${respawn_retry:-3}
 	procd_set_param stderr 1
 	procd_set_param stdout 1
