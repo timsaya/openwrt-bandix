@@ -13,7 +13,7 @@ reload_service() {
 }
 
 start_service() {
-	local iface
+	local iface excluded_ips traffic_neighbor_resolve
 	local host
 	local port
 	local data_dir
@@ -43,6 +43,13 @@ start_service() {
 	
 	config_load 'bandix'
 	config_get iface 'general' 'iface'
+	config_get excluded_ips 'traffic' 'traffic_exclude_ips'
+	config_get traffic_neighbor_resolve 'traffic' 'traffic_neighbor_resolve'
+	if [ -z "$traffic_neighbor_resolve" ]; then
+		config_get_bool traffic_neighbor_resolve 'traffic' 'traffic_arp_resolve' '0'
+	else
+		config_get_bool traffic_neighbor_resolve 'traffic' 'traffic_neighbor_resolve' '0'
+	fi
 	config_get host 'general' 'host' '127.0.0.1'
 	[ -n "$host" ] || host='127.0.0.1'
 	config_get port 'general' 'port'
@@ -161,6 +168,20 @@ start_service() {
 	if [ "$host" != '127.0.0.1' ] && ! printf '%s\n' "$bandix_help" | grep -q -- '--host'; then
 		logger -t bandix 'The installed Bandix binary does not support --host; upgrade Bandix to change the listening address'
 		return 1
+	fi
+	if [ "$traffic_enabled" = 1 ] && [ -n "$excluded_ips" ]; then
+		if ! printf '%s\n' "$bandix_help" | grep -q -- '--traffic-exclude-ips'; then
+			logger -t bandix 'The installed Bandix binary does not support IP exclusion'
+			return 1
+		fi
+		args="$args --traffic-exclude-ips $(printf '%s' "$excluded_ips" | tr ' ' ',')"
+	fi
+	if [ "$traffic_enabled" = 1 ] && [ "$traffic_neighbor_resolve" = 1 ]; then
+		if ! printf '%s\n' "$bandix_help" | grep -q -- '--traffic-neighbor-resolve'; then
+			logger -t bandix 'The installed Bandix binary does not support active neighbor resolution'
+			return 1
+		fi
+		args="$args --traffic-neighbor-resolve"
 	fi
 	procd_open_instance bandix
 	procd_set_param command $PROG $args
